@@ -1,0 +1,31 @@
+@keyframes rotate-gradient {
+  0% {
+  
+    opacity: 0;
+    color: #6366f1; /* indigo-500 */
+  }
+  20% {
+  
+    opacity: 1;
+    color: #3b82f6; /* blue-500 */
+  }
+  50% {
+  
+    opacity: 1;
+    color: #06b6d4; /* cyan-500 */
+  }
+  80% {
+   
+    opacity: 1;
+    color: #3b82f6; /* back to blue */
+  }
+  100% {
+  
+    opacity: 0;
+    color: #6366f1; /* back to indigo */
+  }
+}
+
+.animate-rotate-gradient {
+  animation: rotate-gradient 3s ease-in-out infinite;
+}
