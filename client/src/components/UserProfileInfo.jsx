@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Verified, Briefcase, PenBox } from 'lucide-react';
+import { Calendar, MapPin, Verified, Briefcase, PenBox, GraduationCap } from 'lucide-react';
 import React from 'react';
 import moment from 'moment';
 
@@ -65,6 +65,17 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
                 {user.graduation_year || 'Add graduation year'}
               </span>
             </span>
+
+            {/* Department */}
+            {user.department && (
+              <span className='flex items-center gap-1.5'>
+                <GraduationCap className='w-4 h-4' />
+                Department:
+                <span className='font-medium ml-1'>
+                  {user.department}
+                </span>
+              </span>
+            )}
 
             {/* Current Work */}
             <span className='flex items-center gap-1.5'>

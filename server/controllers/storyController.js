@@ -34,10 +34,13 @@ export const addUserStory = async (req, res) => {
       background_color,
     });
 
-    // ✅ Schedule delete after 24 hours
+    // ✅ Schedule delete after 24 hours from creation time
     await inngest.send({
       name: "app/story.delete",
-      data: { storyId: story._id },
+      data: { 
+        storyId: story._id,
+        createdAt: story.createdAt 
+      },
     });
 
     res.json({ success: true, story });
@@ -58,12 +61,31 @@ export const getStories = async (req, res) => {
     const userIds = [userId, ...(user.connections || []), ...(user.following || [])];
 
     const stories = await Story.find({ user: { $in: userIds } })
-      .populate("user", "name profilePic")
+      .populate("user", "full_name username profile_picture")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, stories });
   } catch (error) {
     console.error("Get stories error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// ✅ Cleanup old stories (older than 24 hours)
+export const cleanupOldStories = async (req, res) => {
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await Story.deleteMany({
+      createdAt: { $lt: oneDayAgo }
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Deleted ${result.deletedCount} old stories.`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error("Cleanup stories error:", error);
     res.json({ success: false, message: error.message });
   }
 };

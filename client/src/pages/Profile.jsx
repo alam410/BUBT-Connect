@@ -9,7 +9,7 @@ import ProfileModal from '../components/ProfileModal'
 import { useAuth } from '@clerk/clerk-react'
 import toast from 'react-hot-toast'
 import { useSelector } from 'react-redux'
-import axios from 'axios' 
+import api from '../api/axios' 
 
 const Profile = () => {
 
@@ -20,11 +20,12 @@ const Profile = () => {
   const [posts, setPosts] = useState([])
   const [activeTab, setActiveTab] = useState('posts')
   const [showEdit, setShowEdit] = useState(false)
+  const [postToDelete, setPostToDelete] = useState(null)
 
   const fetchUser = async (profileId) => { 
     const token = await getToken()
     try {
-      const { data } = await axios.post(`/api/user/profiles`, {profileId}, {
+      const { data } = await api.post(`/api/user/profiles`, {profileId}, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -46,11 +47,36 @@ const handleProfileUpdate = () => {
     // This function's job is to re-run the fetchUser function
     // to get the fresh data from the server.
     if (profileId){ 
-      fetchUser(profileId)
-    }
-    else {
-      fetchUser(currentUser._id)
-    }
+      fetchUser(profileId)
+    }
+    else {
+      fetchUser(currentUser._id)
+    }
+  }
+
+  const confirmDelete = (postId) => {
+    setPostToDelete(postId)
+  }
+
+  const handleDeletePost = async () => {
+    if (!postToDelete) return
+    try {
+      const token = await getToken()
+      const { data } = await api.delete(`/api/post/${postToDelete}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (data.success) {
+        setPosts((prev) => prev.filter((post) => post._id !== postToDelete))
+        toast.success('Post deleted successfully!')
+      } else {
+        toast.error(data.message || 'Failed to delete post')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error(err.message || 'Error deleting post')
+    } finally {
+      setPostToDelete(null)
+    }
   }
 
   useEffect(() => {
@@ -108,7 +134,14 @@ const handleProfileUpdate = () => {
           {activeTab === 'posts' && (
             <div className='mt-6 flex flex-col items-center gap-6'>
               {posts.length > 0 ? (
-                posts.map((post) => <PostCard key={post._id} post={post} />)
+                posts.map((post) => (
+                  <PostCard 
+                    key={post._id} 
+                    post={post} 
+                    currentUser={currentUser}
+                    onDelete={() => confirmDelete(post._id)}
+                  />
+                ))
               ) : (
                 <p className='text-gray-500 text-sm'>No posts yet.</p>
               )}
@@ -154,7 +187,36 @@ const handleProfileUpdate = () => {
       </div>
           {/* Show Profile Edit */}
     {showEdit && <ProfileModal setShowEdit={setShowEdit} onProfileUpdate={handleProfileUpdate} />}
-    </div>
+    
+    {/* Delete Confirmation Modal */}
+    {postToDelete && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-lg p-6 max-w-sm w-full mx-4">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">
+            Delete Post?
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete this post? This action cannot be
+            undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+              onClick={() => setPostToDelete(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+              onClick={handleDeletePost}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </div>
   ) : (
     <Loading />
   )

@@ -11,6 +11,8 @@ import {
   updateUserData,
   getOrCreateUser,
   rejectConnectionRequest,
+  cancelConnectionRequest,
+  disconnectUser,
 } from "../controllers/userController.js";
 import { protect } from "../middlewares/auth.js";
 import { upload } from "../configs/multer.js";
@@ -39,6 +41,8 @@ userRouter.post("/unfollow", unfollowUser);
 userRouter.post("/connect", sendConnectionRequest);
 userRouter.post("/accept", acceptConnectionRequest);
 userRouter.post("/reject", rejectConnectionRequest);
+userRouter.post("/cancel-request", cancelConnectionRequest);
+userRouter.post("/disconnect", disconnectUser);
 userRouter.get("/connections", getUserConnections);
 userRouter.get("/recent-message", getUserRecentMessages);
 userRouter.post("/profiles", getUserProfiles);

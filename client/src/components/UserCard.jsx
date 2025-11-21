@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { MapPin, MessageCircle, Plus, UserPlus, Check } from 'lucide-react'
+import { MapPin, MessageCircle, Plus, UserPlus, Check, Calendar, Briefcase, GraduationCap, X } from 'lucide-react'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
 import { updateUserLocal } from '../features/user/userSlice'
@@ -37,8 +37,13 @@ const UserCard = ({user}) => {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (data.success) {
-                const pendingIds = data.pendingConnections?.map(u => u._id || u) || []
-                setIsPending(pendingIds.includes(userId))
+                // Check incoming pending connections (where current user is recipient)
+                const incomingPendingIds = data.pendingConnections?.map(u => u._id || u) || []
+                // Check outgoing pending connections (where current user is sender)
+                const outgoingPendingIds = data.sentPendingConnections?.map(u => u._id || u) || []
+                
+                // Set pending if user is in either list
+                setIsPending(incomingPendingIds.includes(userId) || outgoingPendingIds.includes(userId))
             }
         } catch (error) {
             console.error('Error checking pending connection:', error)
@@ -115,6 +120,32 @@ const UserCard = ({user}) => {
             return
         }
         
+        // If already pending, cancel the request
+        if (isPending) {
+            try {
+                setLoading(true)
+                const token = await getToken()
+                const { data } = await api.post(
+                    '/api/user/cancel-request',
+                    { id: userId },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                )
+                
+                if (data.success) {
+                    setIsPending(false)
+                    toast.success('Connection request cancelled')
+                } else {
+                    toast.error(data.message || 'Failed to cancel connection request')
+                }
+            } catch (error) {
+                console.error('Cancel connection request error:', error)
+                toast.error(error.response?.data?.message || 'Failed to cancel connection request')
+            } finally {
+                setLoading(false)
+            }
+            return
+        }
+        
         // Send connection request
         try {
             setLoading(true)
@@ -128,12 +159,22 @@ const UserCard = ({user}) => {
             if (data.success) {
                 setIsPending(true)
                 toast.success('Connection request sent!')
+            } else if (data.message && data.message.includes('already pending')) {
+                // If it says already pending, set pending state
+                setIsPending(true)
+                toast.info('Connection request is already pending')
             } else {
                 toast.error(data.message || 'Failed to send connection request')
             }
         } catch (error) {
-            console.error('Connection request error:', error)
-            toast.error(error.response?.data?.message || 'Failed to send connection request')
+            // If error says "already pending", set pending state
+            if (error.response?.data?.message?.includes('already pending')) {
+                setIsPending(true)
+                toast.info('Connection request is already pending')
+            } else {
+                console.error('Connection request error:', error)
+                toast.error(error.response?.data?.message || 'Failed to send connection request')
+            }
         } finally {
             setLoading(false)
         }
@@ -144,90 +185,138 @@ const UserCard = ({user}) => {
     return null
   }
 
+  // Extract user data
+  const userId = user._id || user
+  const userName = user.full_name || "Unknown User"
+  const userUsername = user.username || "unknown"
+  const userProfilePic = user.profile_picture || "/default-avatar.png"
+  const userLocation = user.location || ""
+  const userGraduationYear = user.graduation_year || null
+  const userCurrentWork = user.current_work || ""
+  const userDepartment = user.department || ""
+
   return (
-<div key={user._id || user} className='p-4 pt-6 flex flex-col justify-between w-72 shadow border border-gray-200 rounded-md hover:shadow-lg transition-shadow'>
-  <div className='text-center'>
-    <img src={user.profile_picture} alt="" className='rounded-full w-16 shadow-md mx-auto' />
-    
-    <p className='mt-4 font-semibold'>{user.full_name}</p>
-    
-    {user.username && (
-      <p className='text-gray-500 font-light'>@{user.username}</p>
-    )}
-
-    {user.bio && (
-      <p className='text-gray-600 mt-2 text-center text-sm px-4'>
-        {user.bio}
-      </p>
-    )}
-  </div>
-
-  <div className='flex items-center justify-center gap-2 mt-4 text-xs text-gray-600'>
-        {user.location && (
-            <div className='flex items-center gap-1 border border-gray-300 rounded-full px-3 py-1'>
-                <MapPin className='w-4 h-4' /> {user.location}
-            </div>
-        )}
-        <div className='flex items-center gap-1 border border-gray-300 rounded-full px-3 py-1'>
-            <span>{Array.isArray(user.followers) ? user.followers.length : 0}</span> Followers
-        </div>
-    </div>
-
-    <div className='flex mt-4 gap-2'>
-    {/* Follow Button */}
-    <button
-        onClick={handleFollow}
-        disabled={loading || !currentUser || (currentUser._id === (user._id || user))}
-        className={`w-full py-2 rounded-md flex justify-center items-center gap-2 active:scale-95 transition cursor-pointer ${
-            isFollowing
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white'
-        } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+    <div
+      key={userId}
+      className="w-full max-w-sm flex gap-4 p-5 bg-white shadow-md rounded-lg hover:shadow-xl transition-all duration-200 border border-gray-100"
     >
-        {isFollowing ? (
-            <>
+      <img
+        src={userProfilePic}
+        alt={userName}
+        className="rounded-full w-14 h-14 shadow-sm object-cover flex-shrink-0 border-2 border-gray-100"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="mb-2">
+          <p className="font-semibold text-slate-800 text-base leading-tight">{userName}</p>
+          <p className="text-slate-500 text-sm mt-0.5">@{userUsername}</p>
+        </div>
+
+        {/* Additional Information */}
+        <div className="mt-3 space-y-1.5 mb-4">
+          {/* Location */}
+          {userLocation && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span className="truncate">{userLocation}</span>
+            </div>
+          )}
+
+          {/* Department */}
+          {userDepartment && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <GraduationCap className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span className="truncate">{userDepartment}</span>
+            </div>
+          )}
+
+          {/* Graduation Year */}
+          {userGraduationYear && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span>Graduated {userGraduationYear}</span>
+            </div>
+          )}
+
+          {/* Current Work */}
+          {userCurrentWork && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Briefcase className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span className="truncate">{userCurrentWork}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button
+            onClick={() => navigate(`/profile/${userId}`)}
+            className="flex-1 min-w-[100px] px-3 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-[0.98] transition-all duration-200 text-white shadow-sm hover:shadow-md cursor-pointer"
+          >
+            View Profile
+          </button>
+
+          {/* Follow Button */}
+          <button
+            onClick={handleFollow}
+            disabled={loading || !currentUser || (currentUser._id === userId)}
+            className={`flex-1 min-w-[100px] px-3 py-2 text-sm font-medium rounded-lg active:scale-[0.98] transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center gap-1.5 ${
+              isFollowing
+                ? 'bg-white border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700'
+                : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white'
+            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isFollowing ? (
+              <>
                 <Check className='w-4 h-4' />
                 Following
-            </>
-        ) : (
-            <>
+              </>
+            ) : (
+              <>
                 <UserPlus className='w-4 h-4' />
                 Follow
-            </>
-        )}
-    </button>
+              </>
+            )}
+          </button>
 
-    {/* Connection Request Button / Message Button */}
-    <button
-        onClick={handleConnectionRequest}
-        disabled={loading || !currentUser || (currentUser._id === (user._id || user))}
-        className={`flex items-center justify-center w-16 border rounded-md cursor-pointer active:scale-95 transition ${
-            isConnected
-                ? 'bg-indigo-100 border-indigo-300 text-indigo-600 hover:bg-indigo-200'
+          {/* Connection Request Button / Message Button */}
+          <button
+            onClick={handleConnectionRequest}
+            disabled={loading || !currentUser || (currentUser._id === userId)}
+            className={`flex-1 min-w-[100px] px-3 py-2 text-sm font-medium rounded-lg active:scale-[0.98] transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center gap-1.5 ${
+              isConnected
+                ? 'bg-white border border-indigo-300 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-700'
                 : isPending
-                ? 'bg-yellow-100 border-yellow-300 text-yellow-600 hover:bg-yellow-200'
-                : 'border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-600'
-        } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-        title={
-            isConnected
+                ? 'bg-white border border-orange-300 hover:border-orange-400 hover:bg-orange-50 text-orange-600'
+                : 'bg-white border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700'
+            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={
+              isConnected
                 ? 'Message'
                 : isPending
-                ? 'Connection request pending'
+                ? 'Click to cancel connection request'
                 : 'Send connection request'
-        }
-    >
-        {isConnected ? (
-            <MessageCircle className='w-5 h-5' />
-        ) : isPending ? (
-            <Check className='w-5 h-5' />
-        ) : (
-            <Plus className='w-5 h-5' />
-        )}
-    </button>
+            }
+          >
+            {isConnected ? (
+              <>
+                <MessageCircle className='w-4 h-4' />
+                Message
+              </>
+            ) : isPending ? (
+              <>
+                <X className='w-4 h-4' />
+                Cancel
+              </>
+            ) : (
+              <>
+                <Plus className='w-4 h-4' />
+                Connect
+              </>
+            )}
+          </button>
+        </div>
+      </div>
     </div>
-
-
-</div>
   )
 }
 

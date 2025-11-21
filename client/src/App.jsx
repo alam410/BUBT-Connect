@@ -10,6 +10,7 @@ import Discover from "./pages/Discover";
 import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
 import Announcements from "./pages/Announcements";
+import BUBTNX from "./pages/BUBTNX";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -30,37 +31,50 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ 
-          display: "flex", 
-          alignItems: "center", 
-          justifyContent: "center", 
-          height: "100vh", 
-          background: "#f3f4f6",
-          fontFamily: "system-ui"
-        }}>
-          <div style={{ 
-            background: "white", 
-            padding: "2rem", 
-            borderRadius: "8px", 
-            boxShadow: "0 4px 6px rgba(0,0,0,0.1)", 
-            maxWidth: "500px" 
-          }}>
-            <h1 style={{ color: "#dc2626", marginBottom: "1rem" }}>⚠️ Application Error</h1>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            background: "#f3f4f6",
+            fontFamily: "system-ui",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              padding: "2rem",
+              borderRadius: "8px",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+              maxWidth: "500px",
+            }}
+          >
+            <h1 style={{ color: "#dc2626", marginBottom: "1rem" }}>
+              ⚠️ Application Error
+            </h1>
             <p style={{ color: "#374151", marginBottom: "1rem" }}>
               Something went wrong. Please check the console for details.
             </p>
-            <p style={{ color: "#6b7280", fontSize: "0.875rem", fontFamily: "monospace", marginBottom: "1rem" }}>
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "0.875rem",
+                fontFamily: "monospace",
+                marginBottom: "1rem",
+              }}
+            >
               {this.state.error?.message || "Unknown error"}
             </p>
-            <button 
-              onClick={() => window.location.reload()} 
-              style={{ 
-                padding: "0.5rem 1rem", 
-                background: "#3b82f6", 
-                color: "white", 
-                border: "none", 
-                borderRadius: "4px", 
-                cursor: "pointer" 
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: "0.5rem 1rem",
+                background: "#3b82f6",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
               }}
             >
               Reload Page
@@ -76,7 +90,7 @@ class ErrorBoundary extends Component {
 
 const App = () => {
   console.log("✅ App component rendering...");
-  
+
   return (
     <ErrorBoundary>
       <Toaster />
@@ -98,6 +112,7 @@ const App = () => {
           <Route path="messages/:userId" element={<ChatBox />} />
           <Route path="connections" element={<Connections />} />
           <Route path="announcements" element={<Announcements />} />
+          <Route path="bubt-nx" element={<BUBTNX />} />
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileId" element={<Profile />} />

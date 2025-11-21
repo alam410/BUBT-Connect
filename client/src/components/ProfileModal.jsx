@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { toast } from "react-hot-toast";
-import { X, Camera } from "lucide-react";
+import { X, Camera, MapPin } from "lucide-react";
 import { updateUser } from "../features/user/userSlice.js";
 
 const ProfileModal = ({ setShowEdit, onProfileUpdate }) => {
@@ -18,23 +18,109 @@ const ProfileModal = ({ setShowEdit, onProfileUpdate }) => {
     location: "",
     graduation_year: "",
     current_work: "",
+    department: "",
     profile_picture: null,
     cover_photo: null,
   });
 
+  // Location autocomplete state
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [locationInput, setLocationInput] = useState("");
+  const locationInputRef = useRef(null);
+  const suggestionsRef = useRef(null);
+
   useEffect(() => {
     if (reduxUser || clerkUser) {
+      const location = reduxUser?.location || "";
       setEditForm((prev) => ({
         ...prev,
         full_name: prev.full_name || reduxUser?.full_name || clerkUser?.fullName || "",
         username: prev.username || reduxUser?.username || clerkUser?.username || "",
         bio: prev.bio || reduxUser?.bio || "",
-        location: prev.location || reduxUser?.location || "",
+        location: prev.location || location,
         graduation_year: prev.graduation_year || reduxUser?.graduation_year || "",
         current_work: prev.current_work || reduxUser?.current_work || "",
+        department: prev.department || reduxUser?.department || "",
       }));
+      setLocationInput(location);
     }
   }, [reduxUser, clerkUser]);
+
+  // Fetch location suggestions from Nominatim API
+  const fetchLocationSuggestions = async (query) => {
+    if (!query || query.length < 2) {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      // Using Nominatim API (OpenStreetMap) - free, no API key needed
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'BUBT-Connect/1.0' // Required by Nominatim
+          }
+        }
+      );
+      const data = await response.json();
+      
+      const suggestions = data.map((item) => ({
+        display_name: item.display_name,
+        place_id: item.place_id,
+      }));
+      
+      setLocationSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0);
+    } catch (error) {
+      console.error("Error fetching location suggestions:", error);
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Debounce location search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (locationInput !== editForm.location) {
+        fetchLocationSuggestions(locationInput);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [locationInput]);
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target) &&
+        locationInputRef.current &&
+        !locationInputRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLocationSelect = (suggestion) => {
+    setLocationInput(suggestion.display_name);
+    setEditForm({ ...editForm, location: suggestion.display_name });
+    setShowSuggestions(false);
+    setLocationSuggestions([]);
+  };
+
+  const handleLocationChange = (e) => {
+    const value = e.target.value;
+    setLocationInput(value);
+    setEditForm({ ...editForm, location: value });
+  };
 
   const handleSaveProfile = async () => {
     try {
@@ -48,6 +134,7 @@ const ProfileModal = ({ setShowEdit, onProfileUpdate }) => {
         location,
         graduation_year,
         current_work,
+        department,
         profile_picture,
         cover_photo,
       } = editForm;
@@ -58,6 +145,7 @@ const ProfileModal = ({ setShowEdit, onProfileUpdate }) => {
       formData.append("location", location);
       formData.append("graduation_year", graduation_year);
       formData.append("current_work", current_work);
+      formData.append("department", department);
 
       if (profile_picture) formData.append("profile", profile_picture);
       if (cover_photo) formData.append("cover", cover_photo);
@@ -161,7 +249,6 @@ const ProfileModal = ({ setShowEdit, onProfileUpdate }) => {
             ["Full Name", "full_name", "text"],
             ["Username", "username", "text"],
             ["Bio", "bio", "textarea"],
-            ["Location", "location", "text"],
             ["Graduation Year", "graduation_year", "number"],
             ["Current Work", "current_work", "text"],
           ].map(([label, key, type]) => (
@@ -186,6 +273,71 @@ const ProfileModal = ({ setShowEdit, onProfileUpdate }) => {
               )}
             </div>
           ))}
+
+          {/* Department Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Department
+            </label>
+            <select
+              value={editForm.department}
+              onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+              className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+            >
+              <option value="">Select Department</option>
+              <option value="Management">Management</option>
+              <option value="Accounting">Accounting</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Finance">Finance</option>
+              <option value="English">English</option>
+              <option value="Law & Justice">Law & Justice</option>
+              <option value="Mathematics & Statistics">Mathematics & Statistics</option>
+              <option value="Computer Science and Engineering (CSE)">Computer Science and Engineering (CSE)</option>
+              <option value="Electrical and Electronic Engineering (EEE)">Electrical and Electronic Engineering (EEE)</option>
+              <option value="Textile Engineering">Textile Engineering</option>
+            </select>
+          </div>
+
+          {/* Location Field with Autocomplete */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Location
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                ref={locationInputRef}
+                type="text"
+                value={locationInput}
+                onChange={handleLocationChange}
+                onFocus={() => {
+                  if (locationSuggestions.length > 0) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                placeholder="Search for a location..."
+                className="w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+              {showSuggestions && locationSuggestions.length > 0 && (
+                <div
+                  ref={suggestionsRef}
+                  className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                >
+                  {locationSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.place_id}
+                      type="button"
+                      onClick={() => handleLocationSelect(suggestion)}
+                      className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-2"
+                    >
+                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-gray-700">{suggestion.display_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </form>
 
         {/* Footer */}

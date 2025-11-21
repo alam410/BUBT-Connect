@@ -65,20 +65,28 @@ const StoriesBar = ({ user }) => {
                 </div>
 
                 {/* Story cards */}
-                {stories.map((story, index) => (
-                    <div
-                        onClick={() => setViewStory(story)}
-                        key={index}
-                        className='relative rounded-lg shadow min-w-30 max-w-30 max-h-40 cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-b from-blue-500 to-purple-600 hover:from-blue-700 hover:to-purple-800 active:scale-95'
-                    >
-                        <img
-                            src={story.user?.profile_picture || user?.image_url || '/assets/default-profile.png'}
-                            alt='Profile'
-                            className='absolute size-8 top-3 left-3 z-10 rounded-full ring ring-gray-100 shadow'
-                        />
-                        <p className='absolute top-18 left-3 text-white/60 text-sm truncate max-w-24'>
-                            {story.content}
-                        </p>
+                {stories.map((story, index) => {
+                    const storyUser = story.user || {};
+                    const userName = storyUser.full_name || storyUser.name || storyUser.username || 'User';
+                    const userProfilePic = storyUser.profile_picture || storyUser.profilePic || user?.image_url || '/assets/default-profile.png';
+                    
+                    return (
+                        <div
+                            onClick={() => setViewStory(story)}
+                            key={story._id || index}
+                            className='relative rounded-lg shadow min-w-30 max-w-30 max-h-40 cursor-pointer hover:shadow-lg transition-all duration-200 bg-gradient-to-b from-blue-500 to-purple-600 hover:from-blue-700 hover:to-purple-800 active:scale-95'
+                        >
+                            <img
+                                src={userProfilePic}
+                                alt={userName}
+                                className='absolute size-8 top-3 left-3 z-10 rounded-full ring ring-gray-100 shadow object-cover'
+                                onError={(e) => {
+                                    e.target.src = user?.image_url || '/assets/default-profile.png'
+                                }}
+                            />
+                            <p className='absolute top-18 left-3 text-white/60 text-sm truncate max-w-24' title={userName}>
+                                {userName}
+                            </p>
                         <p className='text-white absolute bottom-1 right-2 z-10 text-xs'>
                             {moment(story.createdAt).fromNow()}
                         </p>
@@ -102,8 +110,9 @@ const StoriesBar = ({ user }) => {
                                 )}
                             </div>
                         )}
-                    </div>
-                ))}
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Add Story Modal */}

@@ -28,8 +28,9 @@ export const updateUserData = async (req, res) => {
   try {
     const { userId } = await req.auth(); // use await, consistent with getUserData
     let { username, bio, location, full_name, 
-      graduation_year, // <-- ADDED
-      current_work } = req.body || {}; // safe fallback
+      graduation_year,
+      current_work,
+      department } = req.body || {}; // safe fallback
 
     const tempUser = await User.findById(userId);
     if (!tempUser) return res.json({ success: false, message: "User not found" });
@@ -41,8 +42,7 @@ export const updateUserData = async (req, res) => {
       if (userExists) username = tempUser.username;
     }
 
-    const updatedData = { username, bio, location, full_name,graduation_year, // <-- ADDED
-      current_work };
+    const updatedData = { username, bio, location, full_name, graduation_year, current_work, department };
 
     const profile = req.files?.profile?.[0];
     const cover = req.files?.cover?.[0];
@@ -104,6 +104,7 @@ export const discoverUsers = async (req, res) => {
         { email: new RegExp(input || "", "i") },
         { full_name: new RegExp(input || "", "i") },
         { location: new RegExp(input || "", "i") },
+        { department: new RegExp(input || "", "i") },
       ],
     });
     const filteredUsers = allUsers.filter((user) => user._id.toString() !== userId);
@@ -215,21 +216,32 @@ export const getUserConnections = async (req, res) => {
   try {
     const { userId } = await req.auth();
     const user = await User.findById(userId)
-      .populate("connections", "full_name username profile_picture bio location")
-      .populate("followers", "full_name username profile_picture bio location")
-      .populate("following", "full_name username profile_picture bio location");
+      .populate("connections", "full_name username profile_picture bio location graduation_year current_work department")
+      .populate("followers", "full_name username profile_picture bio location graduation_year current_work department")
+      .populate("following", "full_name username profile_picture bio location graduation_year current_work department");
 
     if (!user) {
       return res.json({ success: false, message: "User not found" });
     }
 
-    const pendingConnectionsData = await Connection.find({
+    // Get incoming pending connections (where current user is recipient)
+    const incomingPendingData = await Connection.find({
       to_user_id: userId,
       status: "pending",
-    }).populate("from_user_id", "full_name username profile_picture bio location");
+    }).populate("from_user_id", "full_name username profile_picture bio location graduation_year current_work department");
 
-    const pendingConnections = pendingConnectionsData
+    const incomingPending = incomingPendingData
       .map((conn) => conn.from_user_id)
+      .filter((user) => user !== null); // Filter out any null values
+
+    // Get outgoing pending connections (where current user is sender)
+    const outgoingPendingData = await Connection.find({
+      from_user_id: userId,
+      status: "pending",
+    }).populate("to_user_id", "full_name username profile_picture bio location graduation_year current_work department");
+
+    const outgoingPending = outgoingPendingData
+      .map((conn) => conn.to_user_id)
       .filter((user) => user !== null); // Filter out any null values
 
     res.json({
@@ -237,7 +249,8 @@ export const getUserConnections = async (req, res) => {
       connections: user.connections || [],
       followers: user.followers || [],
       following: user.following || [],
-      pendingConnections: pendingConnections || [],
+      pendingConnections: incomingPending || [],
+      sentPendingConnections: outgoingPending || [], // New field for outgoing pending connections
     });
   } catch (error) {
     console.log(error);
@@ -302,15 +315,125 @@ export const rejectConnectionRequest = async (req, res) => {
   }
 };
 
+/* Cancel Connection Request (for outgoing requests) */
+export const cancelConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = await req.auth();
+    const { id } = req.body || {};
+
+    const connection = await Connection.findOne({
+      from_user_id: userId,
+      to_user_id: id,
+      status: "pending",
+    });
+
+    if (!connection) {
+      return res.json({ success: false, message: "Connection request not found" });
+    }
+
+    // Delete the connection request
+    await Connection.findByIdAndDelete(connection._id);
+
+    res.json({ success: true, message: "Connection request cancelled" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+/* Disconnect from User (Remove Connection) */
+export const disconnectUser = async (req, res) => {
+  try {
+    const { userId } = await req.auth();
+    const { id } = req.body || {};
+
+    if (!id) {
+      return res.json({ success: false, message: "User ID is required" });
+    }
+
+    // Find the accepted connection
+    const connection = await Connection.findOne({
+      $or: [
+        { from_user_id: userId, to_user_id: id, status: "accepted" },
+        { from_user_id: id, to_user_id: userId, status: "accepted" },
+      ],
+    });
+
+    if (!connection) {
+      return res.json({ success: false, message: "Connection not found" });
+    }
+
+    // Remove from both users' connections arrays
+    const currentUser = await User.findById(userId);
+    const otherUser = await User.findById(id);
+
+    if (currentUser) {
+      currentUser.connections = currentUser.connections.filter(
+        (connId) => String(connId) !== String(id)
+      );
+      await currentUser.save();
+    }
+
+    if (otherUser) {
+      otherUser.connections = otherUser.connections.filter(
+        (connId) => String(connId) !== String(userId)
+      );
+      await otherUser.save();
+    }
+
+    // Delete the connection document
+    await Connection.findByIdAndDelete(connection._id);
+
+    res.json({ success: true, message: "Disconnected successfully" });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 /* Get User Profiles */
 export const getUserProfiles = async (req, res) => {
   try {
     const { profileId } = req.body || {};
+    const { userId } = req.auth(); // Get current user ID for reaction checking
+    
     const profile = await User.findById(profileId);
     if (!profile) return res.json({ success: false, message: "Profile not found" });
 
-    const posts = await Post.find({ user: profileId }).populate("user");
-    return res.json({ success: true, profile, posts });
+    const posts = await Post.find({ user: profileId })
+      .populate("user", "full_name username profile_picture")
+      .populate({
+        path: "comments",
+        populate: { path: "user", select: "full_name username profile_picture" },
+        options: { sort: { createdAt: -1 }, limit: 3 }, // Get latest 3 comments
+      })
+      .sort({ createdAt: -1 })
+      .lean(); // Convert to plain JS objects
+
+    // Calculate reaction counts and user reactions (same as getFeedPosts)
+    const formattedPosts = posts.map((post) => {
+      const reactions = post.reactions || {};
+
+      // Count total per reaction type
+      const counts = Object.fromEntries(
+        Object.entries(reactions).map(([type, arr]) => [type, arr.length])
+      );
+
+      // Find which reaction current user gave (if any)
+      const userReaction =
+        Object.entries(reactions).find(([type, arr]) =>
+          arr.some((id) => String(id) === String(userId))
+        )?.[0] || null;
+
+      return {
+        ...post,
+        reactionCounts: counts,
+        userReaction,
+        commentCount: post.comments?.length || 0,
+      };
+    });
+
+    return res.json({ success: true, profile, posts: formattedPosts });
   } catch (error) {
     console.log(error);
     return res.json({ success: false, message: error.message });

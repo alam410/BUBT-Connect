@@ -1,0 +1,21 @@
+{
+  "name": "bubt-connect",
+  "version": "1.0.0",
+  "description": "BUBT Connect - Social networking platform",
+  "private": true,
+  "scripts": {
+    "server": "cd server && npm run server",
+    "dev:server": "cd server && npm run dev",
+    "start:server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run client\"",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+

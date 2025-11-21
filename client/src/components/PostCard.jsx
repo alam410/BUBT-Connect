@@ -52,6 +52,19 @@ const PostCard = ({ post, onDelete }) => {
     soundRef.current = new Audio("../../public/sounds/react_sound.mp3"); // <-- put your mp3 in /public/sounds
   }, []);
 
+  // Sync reaction data when post prop changes
+  useEffect(() => {
+    if (post.reactionCounts) {
+      setReactionCounts(post.reactionCounts);
+    }
+    if (post.userReaction !== undefined) {
+      setUserReaction(post.userReaction);
+    }
+    if (post.commentCount !== undefined) {
+      setCommentCount(post.commentCount);
+    }
+  }, [post.reactionCounts, post.userReaction, post.commentCount]);
+
   const totalReactions =
     Object.values(reactionCounts).reduce((a, b) => a + b, 0) || 0;
 
@@ -135,22 +148,44 @@ const handleReaction = async (reactionType) => {
 
 
 
-  // ✅ Delete Post
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this post?")) return;
-    try {
-      const token = await getToken();
-      const { data } = await api.delete(`/api/post/${post._id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  // ✅ Delete Post - Only trigger confirmation, don't delete directly
+  const handleDelete = () => {
+    // Just trigger the onDelete callback which will show the confirmation modal
+    // The actual deletion will be handled by the parent component (Feed) after confirmation
+    onDelete?.(post._id);
+  };
 
-      if (data.success) {
-        toast.success("Post deleted successfully");
-        onDelete?.(post._id);
-      } else toast.error(data.message || "Delete failed");
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Delete failed");
+  // ✅ Share Post
+  const handleShare = async () => {
+    const postUrl = `${window.location.origin}/post/${post._id}`;
+    const shareData = {
+      title: `${post?.user?.full_name}'s Post`,
+      text: post?.content?.substring(0, 100) || "Check out this post!",
+      url: postUrl,
+    };
+
+    try {
+      // Try using Web Share API if available (mobile devices)
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast.success("Post shared!");
+      } else {
+        // Fallback: Copy link to clipboard
+        await navigator.clipboard.writeText(postUrl);
+        toast.success("Post link copied to clipboard!");
+      }
+    } catch (error) {
+      // If user cancels share, don't show error
+      if (error.name !== "AbortError") {
+        // Fallback: Copy link to clipboard
+        try {
+          await navigator.clipboard.writeText(postUrl);
+          toast.success("Post link copied to clipboard!");
+        } catch (clipboardError) {
+          console.error("Failed to copy:", clipboardError);
+          toast.error("Failed to share post");
+        }
+      }
     }
   };
 
@@ -290,9 +325,12 @@ const handleReaction = async (reactionType) => {
         </div>
 
         {/* Share */}
-        <div className="flex items-center gap-1 cursor-pointer">
+        <div 
+          className="flex items-center gap-1 cursor-pointer hover:text-indigo-600 transition-colors"
+          onClick={handleShare}
+        >
           <Share2 className="w-5 h-5" />
-          <span>{7}</span>
+          <span>Share</span>
         </div>
 
         {/* Delete */}

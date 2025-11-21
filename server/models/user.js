@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema(
     is_verified: { type: Boolean, default: false },
     graduation_year: { type: Number, default: null },
     current_work: { type: String, default: "" },
+    department: { type: String, default: "" },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt

@@ -151,19 +151,59 @@ export const deleteStory = inngest.createFunction(
   { id: "story-delete" },
   { event: "app/story.delete" },
   async ({ event, step }) => {
-    const { storyId } = event.data;
+    const { storyId, createdAt } = event.data;
 
-    // Calculate time 24 hours later
-    const in24Hours = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Fetch the story to get its creation time
+    const story = await step.run("fetch-story", async () => {
+      const foundStory = await Story.findById(storyId);
+      if (!foundStory) {
+        throw new Error("Story not found");
+      }
+      return foundStory;
+    });
 
-    // Wait for 24 hours
-    await step.sleepUntil("wait-for-24-hours", in24Hours);
+    // Calculate time 24 hours after story creation
+    const storyCreatedAt = createdAt ? new Date(createdAt) : story.createdAt;
+    const deleteAt = new Date(storyCreatedAt.getTime() + 24 * 60 * 60 * 1000);
+
+    // If story is already older than 24 hours, delete immediately
+    if (deleteAt <= new Date()) {
+      await step.run("delete-story-immediately", async () => {
+        await Story.findByIdAndDelete(storyId);
+        return { message: "Story deleted (already expired)." };
+      });
+      return;
+    }
+
+    // Wait until 24 hours after story creation
+    await step.sleepUntil("wait-for-24-hours", deleteAt);
 
     // Delete the story
     await step.run("delete-story", async () => {
-      await Story.findByIdAndDelete(storyId);
-      return { message: "Story deleted." };
+      const storyStillExists = await Story.findById(storyId);
+      if (storyStillExists) {
+        await Story.findByIdAndDelete(storyId);
+        return { message: "Story deleted." };
+      }
+      return { message: "Story already deleted." };
     });
+  }
+);
+
+// Cleanup function to delete stories older than 24 hours (runs daily)
+export const cleanupOldStories = inngest.createFunction(
+  { id: "cleanup-old-stories" },
+  { cron: "0 * * * *" }, // Run every hour
+  async ({ step }) => {
+    const deletedCount = await step.run("delete-old-stories", async () => {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const result = await Story.deleteMany({
+        createdAt: { $lt: oneDayAgo }
+      });
+      return result.deletedCount;
+    });
+
+    return { message: `Deleted ${deletedCount} old stories.` };
   }
 );
 
@@ -216,5 +256,6 @@ export const functions = [
   syncUserDeletion,
   sendNewConnectionRequestReminder,
   deleteStory,
+  cleanupOldStories,
   sendNotificationOfUnseenMessages,
 ];

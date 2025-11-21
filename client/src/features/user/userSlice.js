@@ -28,22 +28,29 @@ export const fetchUser = createAsyncThunk(
     };
 
     try {
-      const response = await axios.post("/api/user/get-or-create-user", userData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await axios.post(
+        "/api/user/get-or-create-user",
+        userData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (response.data.success) {
-        toast.success("User authenticated ✅");
+        // toast.success("User authenticated ✅");
         return response.data;
       } else {
         toast.error(response.data.message || "Authentication failed ❌");
         return rejectWithValue(response.data.message);
       }
     } catch (error) {
-      console.error("Error fetching user:", error.response?.data || error.message);
+      console.error(
+        "Error fetching user:",
+        error.response?.data || error.message
+      );
       toast.error("Error connecting to server ❌");
       return rejectWithValue(error.response?.data || error.message);
     }
@@ -70,7 +77,10 @@ export const updateUser = createAsyncThunk(
         return rejectWithValue(response.data.message);
       }
     } catch (error) {
-      console.error("Error updating user:", error.response?.data || error.message);
+      console.error(
+        "Error updating user:",
+        error.response?.data || error.message
+      );
       toast.error("Update failed ❌");
       return rejectWithValue(error.response?.data || error.message);
     }

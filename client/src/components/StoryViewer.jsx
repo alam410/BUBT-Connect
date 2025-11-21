@@ -170,13 +170,16 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
       {/* User Info */}
       <div className="absolute top-4 left-4 flex items-center space-x-3 p-2 px-4 sm:p-4 sm:px-8 backdrop-blur-2xl rounded bg-black/50">
         <img
-          src={viewStory.user?.profile_picture}
-          alt=""
+          src={viewStory.user?.profile_picture || viewStory.user?.profilePic || '/assets/default-profile.png'}
+          alt={viewStory.user?.full_name || viewStory.user?.name || 'User'}
           className="size-7 sm:size-8 rounded-full object-cover border border-white"
+          onError={(e) => {
+            e.target.src = '/assets/default-profile.png'
+          }}
         />
         <div className="text-white font-medium flex items-center gap-1.5">
-          <span>{viewStory.user?.full_name}</span>
-          <BadgeCheck size={18} />
+          <span>{viewStory.user?.full_name || viewStory.user?.name || viewStory.user?.username || 'Unknown User'}</span>
+          {viewStory.user?.is_verified && <BadgeCheck size={18} />}
         </div>
       </div>
 
