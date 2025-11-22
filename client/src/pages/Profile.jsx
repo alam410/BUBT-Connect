@@ -21,6 +21,9 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('posts')
   const [showEdit, setShowEdit] = useState(false)
   const [postToDelete, setPostToDelete] = useState(null)
+  const [likedPosts, setLikedPosts] = useState([])
+  const [analytics, setAnalytics] = useState(null)
+  const [loadingLikes, setLoadingLikes] = useState(false)
 
   const fetchUser = async (profileId) => { 
     const token = await getToken()
@@ -79,6 +82,35 @@ const handleProfileUpdate = () => {
     }
   }
 
+  // Fetch liked posts and analytics when likes tab is active
+  const fetchLikedPosts = async () => {
+    setLoadingLikes(true)
+    try {
+      const token = await getToken()
+      const [likedData, analyticsData] = await Promise.all([
+        api.get('/api/user/liked-posts', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        api.get('/api/user/likes-analytics', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ])
+      
+      if (likedData.data.success) {
+        setLikedPosts(likedData.data.posts || [])
+      }
+      
+      if (analyticsData.data.success) {
+        setAnalytics(analyticsData.data.analytics)
+      }
+    } catch (error) {
+      console.error('Error fetching liked posts:', error)
+      toast.error('Failed to load liked posts')
+    } finally {
+      setLoadingLikes(false)
+    }
+  }
+
   useEffect(() => {
     if (profileId){ 
       fetchUser(profileId)
@@ -87,6 +119,13 @@ const handleProfileUpdate = () => {
       fetchUser(currentUser._id)
     }
   }, [profileId,currentUser])
+
+  useEffect(() => {
+    // Fetch liked posts when likes tab is active
+    if (activeTab === 'likes' && currentUser) {
+      fetchLikedPosts()
+    }
+  }, [activeTab, currentUser])
   return user ? (
     <div className='relative h-full overflow-y-scroll bg-gray-50 p-6'>
       <div className='max-w-3xl mx-auto'>
@@ -177,11 +216,120 @@ const handleProfileUpdate = () => {
             </div>
           )}
 
-          {/* Likes Tab */}
+          {/* Likes Tab - Analytics and Liked Posts */}
           {activeTab === 'likes' && (
-            <p className='text-center text-gray-500 text-sm mt-6'>
-              No liked posts yet.
-            </p>
+            <div className='mt-6 space-y-6'>
+              {loadingLikes ? (
+                <div className='text-center py-8'>
+                  <p className='text-gray-500'>Loading analytics...</p>
+                </div>
+              ) : analytics || likedPosts.length > 0 ? (
+                <>
+                  {/* Statistics Cards */}
+                  <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+                    {/* Total Liked Posts */}
+                    <div className='bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg'>
+                      <p className='text-sm opacity-90'>Total Liked</p>
+                      <p className='text-2xl font-bold mt-1'>{analytics?.totalLikedPosts || likedPosts.length}</p>
+                      <p className='text-xs opacity-75 mt-1'>Posts</p>
+                    </div>
+
+                    {/* Total Reactions */}
+                    <div className='bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl p-4 text-white shadow-lg'>
+                      <p className='text-sm opacity-90'>Total Reactions</p>
+                      <p className='text-2xl font-bold mt-1'>{analytics?.totalReactions || 0}</p>
+                      <p className='text-xs opacity-75 mt-1'>Given</p>
+                    </div>
+
+                    {/* Recent Likes (7 days) */}
+                    <div className='bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white shadow-lg'>
+                      <p className='text-sm opacity-90'>Recent Likes</p>
+                      <p className='text-2xl font-bold mt-1'>{analytics?.recentLikes || 0}</p>
+                      <p className='text-xs opacity-75 mt-1'>Last 7 days</p>
+                    </div>
+
+                    {/* Most Used Reaction */}
+                    <div className='bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg'>
+                      <p className='text-sm opacity-90'>Most Used</p>
+                      <p className='text-lg font-bold mt-1 capitalize'>
+                        {analytics?.reactionBreakdown ? Object.entries(analytics.reactionBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None' : 'None'}
+                      </p>
+                      <p className='text-xs opacity-75 mt-1'>Reaction</p>
+                    </div>
+                  </div>
+
+                  {/* Reaction Breakdown */}
+                  {analytics?.reactionBreakdown && (
+                    <div className='bg-white rounded-xl shadow p-6'>
+                      <h3 className='text-lg font-bold text-gray-800 mb-4'>Reaction Breakdown</h3>
+                      <div className='grid grid-cols-2 md:grid-cols-5 gap-4'>
+                        {Object.entries(analytics.reactionBreakdown).map(([type, count]) => (
+                          <div key={type} className='text-center p-3 bg-gray-50 rounded-lg'>
+                            <p className='text-2xl font-bold text-indigo-600'>{count}</p>
+                            <p className='text-xs text-gray-600 capitalize mt-1'>{type}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Most Liked Posts */}
+                  {analytics?.mostLikedPosts && analytics.mostLikedPosts.length > 0 && (
+                    <div className='bg-white rounded-xl shadow p-6'>
+                      <h3 className='text-lg font-bold text-gray-800 mb-4'>Most Liked Posts by You</h3>
+                      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+                        {analytics.mostLikedPosts.map((post) => (
+                          <div key={post._id} className='border rounded-lg p-3 hover:shadow-md transition-shadow'>
+                            {post.image_urls && post.image_urls.length > 0 && (
+                              <img
+                                src={post.image_urls[0]}
+                                alt=''
+                                className='w-full h-32 object-cover rounded-lg mb-2'
+                              />
+                            )}
+                            <p className='text-sm text-gray-700 line-clamp-2 mb-2'>
+                              {post.content || 'No content'}
+                            </p>
+                            <div className='flex items-center justify-between text-xs text-gray-500'>
+                              <span>❤️ {post.totalReactions} reactions</span>
+                              <span>{moment(post.createdAt).fromNow()}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Liked Posts List */}
+                  <div className='bg-white rounded-xl shadow p-6'>
+                    <h3 className='text-lg font-bold text-gray-800 mb-4'>
+                      All Liked Posts ({likedPosts.length})
+                    </h3>
+                    {likedPosts.length > 0 ? (
+                      <div className='space-y-4'>
+                        {likedPosts.map((post) => (
+                          <PostCard
+                            key={post._id}
+                            post={post}
+                            currentUser={currentUser}
+                            onDelete={null} // Can't delete other people's posts from likes
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className='text-center text-gray-500 py-8'>
+                        No liked posts yet. Start reacting to posts to see them here!
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className='text-center py-8 bg-white rounded-xl shadow p-8'>
+                  <p className='text-gray-500 text-lg mb-2'>No liked posts yet</p>
+                  <p className='text-gray-400 text-sm'>Start reacting to posts to see your analytics here!</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
