@@ -440,6 +440,169 @@ export const getUserProfiles = async (req, res) => {
   }
 };
 
+/* Get Liked Posts - Posts that the user has reacted to */
+export const getLikedPosts = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    
+    // Find all posts where the user has reacted (in any reaction type)
+    const posts = await Post.find({
+      $or: [
+        { 'reactions.like': userId },
+        { 'reactions.love': userId },
+        { 'reactions.celebrate': userId },
+        { 'reactions.insightful': userId },
+        { 'reactions.funny': userId },
+      ]
+    })
+      .populate('user', 'full_name username profile_picture')
+      .populate({
+        path: 'comments',
+        populate: { path: 'user', select: 'full_name username profile_picture' },
+        options: { sort: { createdAt: -1 }, limit: 3 },
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format posts with reaction counts and user's reaction type
+    const formattedPosts = posts.map((post) => {
+      const reactions = post.reactions || {};
+      
+      // Count total per reaction type
+      const counts = Object.fromEntries(
+        Object.entries(reactions).map(([type, arr]) => [type, arr.length])
+      );
+
+      // Find which reaction current user gave
+      const userReaction =
+        Object.entries(reactions).find(([type, arr]) =>
+          arr.some((id) => String(id) === String(userId))
+        )?.[0] || null;
+
+      return {
+        ...post,
+        reactionCounts: counts,
+        userReaction,
+        commentCount: post.comments?.length || 0,
+      };
+    });
+
+    return res.json({ success: true, posts: formattedPosts });
+  } catch (error) {
+    console.error('Error in getLikedPosts:', error);
+    return res.json({ success: false, message: error.message });
+  }
+};
+
+/* Get Likes Analytics - Statistics about user's likes */
+export const getLikesAnalytics = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    
+    // Find all posts where the user has reacted
+    const posts = await Post.find({
+      $or: [
+        { 'reactions.like': userId },
+        { 'reactions.love': userId },
+        { 'reactions.celebrate': userId },
+        { 'reactions.insightful': userId },
+        { 'reactions.funny': userId },
+      ]
+    })
+      .populate('user', 'full_name username profile_picture')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Calculate statistics
+    const totalLikedPosts = posts.length;
+    
+    // Breakdown by reaction type
+    const reactionBreakdown = {
+      like: 0,
+      love: 0,
+      celebrate: 0,
+      insightful: 0,
+      funny: 0,
+    };
+
+    // Calculate total reactions given by user
+    let totalReactions = 0;
+    posts.forEach((post) => {
+      const reactions = post.reactions || {};
+      Object.entries(reactions).forEach(([type, arr]) => {
+        if (arr.some((id) => String(id) === String(userId))) {
+          reactionBreakdown[type] = (reactionBreakdown[type] || 0) + 1;
+          totalReactions += 1;
+        }
+      });
+    });
+
+    // Most liked posts by the user (posts with highest total reactions)
+    const postsWithTotalReactions = posts.map((post) => {
+      const reactions = post.reactions || {};
+      const totalReactions = Object.values(reactions).reduce(
+        (sum, arr) => sum + (arr?.length || 0),
+        0
+      );
+      return { ...post, totalReactions };
+    });
+
+    const mostLikedPosts = postsWithTotalReactions
+      .sort((a, b) => b.totalReactions - a.totalReactions)
+      .slice(0, 5); // Top 5 most liked posts
+
+    // Recent likes (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentLikes = posts.filter(
+      (post) => new Date(post.createdAt) >= sevenDaysAgo
+    ).length;
+
+    // Likes by month (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    const likesByMonth = {};
+    posts.forEach((post) => {
+      const postDate = new Date(post.createdAt);
+      if (postDate >= sixMonthsAgo) {
+        const monthKey = postDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+        likesByMonth[monthKey] = (likesByMonth[monthKey] || 0) + 1;
+      }
+    });
+
+    // Most active days (days with most likes)
+    const likesByDay = {};
+    posts.forEach((post) => {
+      const postDate = new Date(post.createdAt);
+      const dayKey = postDate.toLocaleDateString('en-US', { weekday: 'long' });
+      likesByDay[dayKey] = (likesByDay[dayKey] || 0) + 1;
+    });
+
+    return res.json({
+      success: true,
+      analytics: {
+        totalLikedPosts,
+        totalReactions,
+        reactionBreakdown,
+        recentLikes,
+        likesByMonth,
+        likesByDay,
+        mostLikedPosts: mostLikedPosts.map((post) => ({
+          _id: post._id,
+          content: post.content,
+          image_urls: post.image_urls,
+          user: post.user,
+          totalReactions: post.totalReactions,
+          createdAt: post.createdAt,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Error in getLikesAnalytics:', error);
+    return res.json({ success: false, message: error.message });
+  }
+};
+
 /* -------------------------
    The FIXED getOrCreateUser
    ------------------------- */

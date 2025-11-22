@@ -13,6 +13,8 @@ import {
   rejectConnectionRequest,
   cancelConnectionRequest,
   disconnectUser,
+  getLikedPosts,
+  getLikesAnalytics,
 } from "../controllers/userController.js";
 import { protect } from "../middlewares/auth.js";
 import { upload } from "../configs/multer.js";
@@ -46,5 +48,7 @@ userRouter.post("/disconnect", disconnectUser);
 userRouter.get("/connections", getUserConnections);
 userRouter.get("/recent-message", getUserRecentMessages);
 userRouter.post("/profiles", getUserProfiles);
+userRouter.get("/liked-posts", getLikedPosts);
+userRouter.get("/likes-analytics", getLikesAnalytics);
 
 export default userRouter;
