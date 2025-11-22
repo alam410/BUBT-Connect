@@ -55,22 +55,32 @@ const Layout = () => {
   // Render layout if user exists
   if (user) {
     return (
-      <div className='w-full flex h-screen'>
-        <Sidebar />
-        <div className='flex-1 bg-slate-50 overflow-auto'>
-          <Outlet />
-        </div>
-        {sidebarOpen ? (
-          <X
-            className='absolute top-3 right-3 p-2 z-100 bg-white rounded-md shadow w-10 h-10 text-gray-600 sm:hidden cursor-pointer'
+      <div className='w-full flex h-screen relative'>
+        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        {/* Overlay for mobile when sidebar is open */}
+        {sidebarOpen && (
+          <div 
+            className='fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden'
             onClick={() => setSidebarOpen(false)}
           />
-        ) : (
-          <Menu
-            className='absolute top-3 right-3 p-2 z-100 bg-white rounded-md shadow w-10 h-10 text-gray-600 sm:hidden cursor-pointer'
-            onClick={() => setSidebarOpen(true)}
-          />
         )}
+        <div className='flex-1 bg-slate-50 overflow-auto'>
+          {/* Mobile menu button - Left side only */}
+          {!sidebarOpen ? (
+            <Menu
+              className='fixed top-3 left-3 p-2 z-50 bg-white rounded-md shadow-lg w-10 h-10 text-gray-600 md:hidden cursor-pointer'
+              style={{ left: '12px', top: '12px', right: 'auto' }}
+              onClick={() => setSidebarOpen(true)}
+            />
+          ) : (
+            <X
+              className='fixed top-3 left-3 p-2 z-50 bg-white rounded-md shadow-lg w-10 h-10 text-gray-600 md:hidden cursor-pointer'
+              style={{ left: '12px', top: '12px', right: 'auto' }}
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+          <Outlet />
+        </div>
       </div>
     )
   }

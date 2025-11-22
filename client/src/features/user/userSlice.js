@@ -3,20 +3,31 @@ import axios from "axios";
 import toast from "react-hot-toast";
 
 // ✅ Backend base URL - use environment variable for production
-// In development: uses Vite proxy (empty string or /api)
-// In production: uses VITE_API_URL environment variable or falls back to production backend
+// Uses runtime hostname detection to work reliably on both desktop and mobile browsers
 const getBaseURL = () => {
-  // If VITE_API_URL is set, use it
+  // Priority 1: If VITE_API_URL is set, use it
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   
-  // In development, use empty string (Vite proxy will handle it)
-  if (import.meta.env.DEV) {
+  // Priority 2: Runtime detection - check if we're running on localhost (development)
+  // This works reliably on both desktop and mobile browsers
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isLocalhost = 
+    hostname === 'localhost' || 
+    hostname === '127.0.0.1' ||
+    hostname === '' ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.0.') ||
+    hostname.startsWith('172.');
+  
+  // In development (localhost), use empty string (Vite proxy will handle it)
+  if (isLocalhost || import.meta.env.DEV) {
     return "";
   }
   
-  // In production without VITE_API_URL, use the production backend URL
+  // Priority 3: In production (including mobile browsers), use the production backend URL
+  // Paths already include /api, so we just need the base domain
   return "https://bubt-connect-server.vercel.app";
 };
 

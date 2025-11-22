@@ -36,7 +36,7 @@ const cleanupOldStoriesOnStartup = async () => {
 
 // Run cleanup after a short delay to ensure DB is connected (only for traditional server)
 if (process.env.VERCEL !== "1" && !process.env.VERCEL_ENV) {
-  setTimeout(cleanupOldStoriesOnStartup, 2000);
+setTimeout(cleanupOldStoriesOnStartup, 2000);
 }
 
 // Middlewares - order matters
@@ -101,10 +101,10 @@ app.get("/api/test", async (req, res) => {
 // Only start the server if not in a serverless environment (Vercel)
 // Vercel will use the exported app directly from api/index.js
 if (process.env.VERCEL !== "1" && !process.env.VERCEL_ENV) {
-  const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 }
 
 export default app;

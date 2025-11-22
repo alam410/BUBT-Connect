@@ -6,11 +6,14 @@ import RecentsMessages from "../components/RecentsMessages";
 import api from "../api/axios.js";
 import toast from "react-hot-toast";
 import { useUser, useAuth } from "@clerk/clerk-react";
+import { Menu, X, Bell } from "lucide-react";
 
 const Feed = () => {
   const [feeds, setFeeds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [postToDelete, setPostToDelete] = useState(null); // track which post is being deleted
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false); // right sidebar toggle state
+  const [unreadCount, setUnreadCount] = useState(0); // track total unread messages
   const { user } = useUser();
   const { getToken } = useAuth();
 
@@ -30,9 +33,68 @@ const Feed = () => {
     }
   };
 
+  // Calculate unread count from messages
+  const calculateUnreadCount = (messages) => {
+    if (!messages || !Array.isArray(messages)) return 0;
+    
+    const currentUserId = user?.id;
+    let totalUnread = 0;
+    
+    messages.forEach((msg) => {
+      // Use unreadCount from backend if available
+      if (typeof msg?.unreadCount === 'number') {
+        totalUnread += msg.unreadCount;
+        return;
+      }
+      
+      // Fallback: check if message is unread
+      const messageFromUserId = msg?.originalFromUserId || msg?.from_user_id?._id || msg?.from_user_id;
+      const messageToUserId = msg?.originalToUserId || msg?.to_user_id?._id || msg?.to_user_id;
+      
+      // Only count messages received by current user (not sent by current user)
+      if (currentUserId && String(messageToUserId) === String(currentUserId)) {
+        if (String(messageFromUserId) !== String(currentUserId)) {
+          if (msg?.isUnread === true || (typeof msg?.seen === 'boolean' && !msg.seen)) {
+            totalUnread += 1;
+          }
+        }
+      }
+    });
+    
+    return totalUnread;
+  };
+
+  // Fetch unread messages count
+  const fetchUnreadCount = async () => {
+    try {
+      const token = await getToken();
+      const { data } = await api.get('/api/user/recent-message', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (data.success && data.messages) {
+        const totalUnread = calculateUnreadCount(data.messages);
+        setUnreadCount(totalUnread);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
   useEffect(() => {
     fetchFeeds();
   }, []);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchUnreadCount();
+      
+      // Refresh unread count every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      
+      return () => clearInterval(interval);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const confirmDelete = (postId) => {
     setPostToDelete(postId); // open modal
@@ -62,49 +124,110 @@ const Feed = () => {
   if (loading) return <Loading />;
 
   return (
-    <div className="h-full overflow-x-auto overflow-y-auto py-10 xl:pr-5 flex items-start justify-center xl:gap-8 min-w-max">
-      {/* Left: Feed Section */}
-      <div>
-        <StoriesBar />
-        <div className="p-4 space-y-6">
-          {feeds.map((post) => (
-            <PostCard
-              key={post._id}
-              post={post}
-              currentUser={user}
-              onDelete={() => confirmDelete(post._id)}
-            />
-          ))}
-        </div>
-      </div>
+    <>
+      {/* Mobile Right Sidebar Toggle Button - Positioned on right side, middle to bottom */}
+      <button
+        onClick={() => {
+          setRightSidebarOpen(!rightSidebarOpen);
+          // Refresh unread count when opening sidebar
+          if (!rightSidebarOpen) {
+            fetchUnreadCount();
+          }
+        }}
+        className="fixed right-0 top-1/2 -translate-y-1/2 p-3 z-[60] bg-white hover:bg-gray-50 rounded-l-lg shadow-xl w-12 h-16 text-gray-600 lg:hidden cursor-pointer flex items-center justify-center transition-all duration-300 relative border border-r-0 border-gray-200"
+        style={{ 
+          right: '0',
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
+        aria-label="Toggle right sidebar"
+      >
+        {rightSidebarOpen ? (
+          <X className="w-5 h-5 text-gray-600" />
+        ) : (
+          <>
+            <Bell className="w-5 h-5 text-gray-600" />
+            {/* Unread count badge */}
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 border-2 border-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </>
+        )}
+      </button>
 
-      {/* Right Sidebar */}
-      <div className="max-xl:hidden sticky top-0">
-        <div className="max-w-xs bg-white text-xs p-4 rounded-2xl flex flex-col items-center gap-3 shadow-lg border-2 border-indigo-400 hover:shadow-indigo-300 transition-all duration-300">
-          <h2 className="text-slate-800 font-bold text-base mb-2">
-            🎉 Upcoming Event
-          </h2>
-          <img
-            src="https://scontent.fdac198-1.fna.fbcdn.net/v/t39.30808-6/582956040_122188175792513975_8940882126580256174_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=127cfc&_nc_ohc=E46NE-5tIhQQ7kNvwHefHzJ&_nc_oc=Adk6UB55jAIXExPqwC_iXzmp2PTqPo4NU2NzTIeya_oPBxnii3Ea5BOHpCSHumY6KY4&_nc_zt=23&_nc_ht=scontent.fdac198-1.fna&_nc_gid=IqRQGFW0QpZe6ZPP8lv8TA&oh=00_AfiJog79Wnu6f3TwaXeSus9OctliktfNHtCdcRvC8tYdCg&oe=6922FBD2"
-            className="w-full h-40 object-cover rounded-lg border border-indigo-300"
-            alt="Event Banner"
-          />
-          <p className="text-slate-600 font-bold text-center">
-            Don’t miss out! Register before seats run out.
-          </p>
-          <a
-            href="https://forms.gle/LT3MjTrCiXhPL3FA9"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-md hover:shadow-lg transition-all duration-300"
+      <div className="h-full overflow-x-auto overflow-y-auto py-10 px-4 md:px-6 lg:px-8 xl:pr-5 relative">
+
+      {/* Overlay for mobile when right sidebar is open */}
+      {rightSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={() => setRightSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main Content Container */}
+      <div className="flex flex-col lg:flex-row items-start justify-center gap-4 md:gap-6 lg:gap-8">
+        {/* Left: Feed Section */}
+        <div className="flex-1 max-w-2xl min-w-0 w-full">
+          <StoriesBar />
+          <div className="p-4 space-y-6">
+            {feeds.map((post) => (
+              <PostCard
+                key={post._id}
+                post={post}
+                currentUser={user}
+                onDelete={() => confirmDelete(post._id)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Right Sidebar - Toggleable on mobile, always visible and sticky on desktop */}
+        <div
+          className={`w-80 bg-slate-50 lg:bg-transparent fixed lg:sticky top-0 right-0 h-full lg:h-fit z-40 lg:z-auto 
+            transform transition-transform duration-300 ease-in-out
+            ${rightSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+            overflow-y-auto lg:overflow-visible
+            pt-16 lg:pt-0 px-4 lg:px-0
+            `}
+        >
+          {/* Close button for mobile */}
+          <button
+            onClick={() => setRightSidebarOpen(false)}
+            className="absolute top-3 right-3 p-2 lg:hidden bg-white rounded-md shadow-md w-8 h-8 text-gray-600 cursor-pointer flex items-center justify-center z-10"
+            aria-label="Close sidebar"
           >
-            Join
-            <br />
-            Now
-          </a>
-        </div>
+            <X className="w-4 h-4" />
+          </button>
 
-        <RecentsMessages />
+          <div className="w-full max-w-xs mx-auto lg:mx-0 bg-white text-xs p-4 rounded-2xl flex flex-col items-center gap-3 shadow-lg border-2 border-indigo-400 hover:shadow-indigo-300 transition-all duration-300">
+            <h2 className="text-slate-800 font-bold text-base mb-2">
+              🎉 Upcoming Event
+            </h2>
+            <img
+              src="https://scontent.fdac198-1.fna.fbcdn.net/v/t39.30808-6/582956040_122188175792513975_8940882126580256174_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=127cfc&_nc_ohc=E46NE-5tIhQQ7kNvwHefHzJ&_nc_oc=Adk6UB55jAIXExPqwC_iXzmp2PTqPo4NU2NzTIeya_oPBxnii3Ea5BOHpCSHumY6KY4&_nc_zt=23&_nc_ht=scontent.fdac198-1.fna&_nc_gid=IqRQGFW0QpZe6ZPP8lv8TA&oh=00_AfiJog79Wnu6f3TwaXeSus9OctliktfNHtCdcRvC8tYdCg&oe=6922FBD2"
+              className="w-full h-40 object-cover rounded-lg border border-indigo-300"
+              alt="Event Banner"
+            />
+            <p className="text-slate-600 font-bold text-center">
+              Don't miss out! Register before seats run out.
+            </p>
+            <a
+              href="https://forms.gle/LT3MjTrCiXhPL3FA9"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-md hover:shadow-lg transition-all duration-300"
+            >
+              Join
+              <br />
+              Now
+            </a>
+          </div>
+
+          <RecentsMessages />
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -135,7 +258,8 @@ const Feed = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

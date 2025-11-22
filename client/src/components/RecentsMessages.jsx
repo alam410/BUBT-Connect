@@ -85,7 +85,7 @@ const RecentsMessages = () => {
     'https://via.placeholder.com/40?text=U'
 
   return (
-    <div className='bg-white max-w-xs mt-4 p-4 min-h-20 rounded-xl shadow text-xs text-slate-800'>
+    <div className='bg-white w-full max-w-xs mx-auto lg:mx-0 mt-4 p-4 min-h-20 rounded-xl shadow text-xs text-slate-800'>
       <h3 className='font-semibold text-slate-800 mb-3 text-sm'>Recent Messages</h3>
 
       <div className='flex flex-col max-h-56 overflow-y-auto no-scrollbar divide-y divide-slate-100'>
