@@ -2,8 +2,25 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-// ✅ Backend base URL (change if needed)
-axios.defaults.baseURL = "http://localhost:4000";
+// ✅ Backend base URL - use environment variable for production
+// In development: uses Vite proxy (empty string or /api)
+// In production: uses VITE_API_URL environment variable or falls back to production backend
+const getBaseURL = () => {
+  // If VITE_API_URL is set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In development, use empty string (Vite proxy will handle it)
+  if (import.meta.env.DEV) {
+    return "";
+  }
+  
+  // In production without VITE_API_URL, use the production backend URL
+  return "https://bubt-connect-server.vercel.app";
+};
+
+axios.defaults.baseURL = getBaseURL();
 axios.defaults.withCredentials = true;
 
 /* ---------------- FETCH USER ---------------- */
