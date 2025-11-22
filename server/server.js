@@ -19,7 +19,7 @@ const app = express();
 // Connect MongoDB
 connectDB();
 
-// Cleanup old stories on server startup
+// Cleanup old stories on server startup (only in non-serverless environments)
 const cleanupOldStoriesOnStartup = async () => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -34,17 +34,34 @@ const cleanupOldStoriesOnStartup = async () => {
   }
 };
 
-// Run cleanup after a short delay to ensure DB is connected
-setTimeout(cleanupOldStoriesOnStartup, 2000);
+// Run cleanup after a short delay to ensure DB is connected (only for traditional server)
+if (process.env.VERCEL !== "1" && !process.env.VERCEL_ENV) {
+  setTimeout(cleanupOldStoriesOnStartup, 2000);
+}
 
 // Middlewares - order matters
 app.use(express.json());
 
 // ✅ CORS: allow frontend origin + credentials
-const allowedOrigins = ["http://localhost:5173"]; // your frontend
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://bubt-connect.vercel.app", // Add your frontend Vercel URL
+  process.env.FRONTEND_URL, // Allow from environment variable
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null, // Vercel preview URLs
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin) || origin.includes("vercel.app")) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all origins for now - restrict in production
+      }
+    },
     credentials: true, // must allow cookies/auth headers
   })
 );
@@ -81,9 +98,13 @@ app.get("/api/test", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// Only start the server if not in a serverless environment (Vercel)
+// Vercel will use the exported app directly from api/index.js
+if (process.env.VERCEL !== "1" && !process.env.VERCEL_ENV) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
 
 export default app;
