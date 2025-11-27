@@ -150,7 +150,7 @@ const BUBTNX = () => {
                       name="username"
                       value={formData.username}
                       onChange={handleInputChange}
-                      placeholder="Email"
+                      placeholder="Annex ID"
                       className="w-full pl-4 pr-12 py-4 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-300 transition-all placeholder:text-gray-400 text-gray-700 shadow-inner"
                       required
                       disabled={isLoading}
@@ -199,7 +199,7 @@ const BUBTNX = () => {
                       </>
                     ) : (
                       <>
-                        <span>Entrar</span>
+                        <span>Enter</span>
                         <LogIn className="w-5 h-5" />
                       </>
                     )}
