@@ -207,8 +207,7 @@ const Feed = () => {
               🎉 Upcoming Event
             </h2>
             <img
-              src="https://scontent.fdac198-1.fna.fbcdn.net/v/t39.30808-6/582956040_122188175792513975_8940882126580256174_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=127cfc&_nc_ohc=E46NE-5tIhQQ7kNvwHefHzJ&_nc_oc=Adk6UB55jAIXExPqwC_iXzmp2PTqPo4NU2NzTIeya_oPBxnii3Ea5BOHpCSHumY6KY4&_nc_zt=23&_nc_ht=scontent.fdac198-1.fna&_nc_gid=IqRQGFW0QpZe6ZPP8lv8TA&oh=00_AfiJog79Wnu6f3TwaXeSus9OctliktfNHtCdcRvC8tYdCg&oe=6922FBD2"
-              className="w-full h-40 object-cover rounded-lg border border-indigo-300"
+              src="https://scontent.fdac198-1.fna.fbcdn.net/v/t39.30808-6/574622748_1137792358468576_1541383656874462563_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=833d8c&_nc_ohc=NCTJZ5vxbDcQ7kNvwFWQn_E&_nc_oc=AdnPmyshCki6a4YncmF9jHx3dEQkizRVnher9tORLJ_M-m01TMzZTjgN8UFdPyfQHEA&_nc_zt=23&_nc_ht=scontent.fdac198-1.fna&_nc_gid=sd1sAAyivMBncyyH783QfA&oh=00_AfiFBo1ygWLlipGpIOhMJglxdKxsU1Y_YHUjI260gWTtNA&oe=692DA5F0"              className="w-full h-40 object-cover rounded-lg border border-indigo-300"
               alt="Event Banner"
             />
             <p className="text-slate-600 font-bold text-center">
