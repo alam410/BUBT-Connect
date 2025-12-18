@@ -207,19 +207,19 @@ const Feed = () => {
               🎉 Upcoming Event
             </h2>
             <img
-              src="https://scontent.fdac198-1.fna.fbcdn.net/v/t39.30808-6/574622748_1137792358468576_1541383656874462563_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=833d8c&_nc_ohc=NCTJZ5vxbDcQ7kNvwFWQn_E&_nc_oc=AdnPmyshCki6a4YncmF9jHx3dEQkizRVnher9tORLJ_M-m01TMzZTjgN8UFdPyfQHEA&_nc_zt=23&_nc_ht=scontent.fdac198-1.fna&_nc_gid=sd1sAAyivMBncyyH783QfA&oh=00_AfiFBo1ygWLlipGpIOhMJglxdKxsU1Y_YHUjI260gWTtNA&oe=692DA5F0"              className="w-full h-40 object-cover rounded-lg border border-indigo-300"
+              src="https://scontent.fdac24-2.fna.fbcdn.net/v/t39.30808-6/599162045_830096999798578_6414524102616850284_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=127cfc&_nc_eui2=AeHexdqWceufifIyssVZPFfSjevCHplugtqN68IemW6C2gg27hLKfLjEobkxipV_0nXHmV0Ak2kJI_xUYcBJ5bvz&_nc_ohc=ZhSslGUQivAQ7kNvwGv8oRV&_nc_oc=AdmD6jXRFjV0h2prEe_gYdpxE8WMdbPDI0WJA4yLRnLeHKPO8uvqNSk8Iv1lDR1nGLc&_nc_zt=23&_nc_ht=scontent.fdac24-2.fna&_nc_gid=MNWf3iJdaN5Gt9p-QkSFjQ&oh=00_Aflw1_HtXf-LbEEF3y4w7xo0Jlyz-ln_sxBMpr9IFE9EYA&oe=69495326"
               alt="Event Banner"
             />
             <p className="text-slate-600 font-bold text-center">
-              Don't miss out! Register before seats run out.
+              Don't miss out! Vote Your Team.
             </p>
             <a
-              href="https://forms.gle/LT3MjTrCiXhPL3FA9"
+              href="https://icpc.bubt.edu.bd/vote-team.php"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-md hover:shadow-lg transition-all duration-300"
             >
-              Join
+              Vote
               <br />
               Now
             </a>
